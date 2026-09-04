@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { QrCode, Users, TrendingUp, Sparkle, Heart, Cake, PartyPopper, GraduationCap, Pencil, Radio, FileDown, Trash2, Mail } from 'lucide-react';
+import { QrCode, Users, TrendingUp, Sparkle, Heart, Cake, PartyPopper, GraduationCap, Pencil, Radio, FileDown, Trash2, Palette } from 'lucide-react';
 import type { Invitado, Evento, EventType } from '@/types/guest';
 import GuestSearch from './GuestSearch';
 
@@ -125,7 +125,7 @@ export default function ReceptionHome({ guests, evento, onScan, onSelectGuest, o
           <span className="text-xs text-white/70 font-light tracking-wide">Resumen</span>
         </button>
         <button onClick={onDesignInvitation} className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-ink-800/60 border border-gold-400/20 hover:border-gold-400/50 hover:bg-ink-700 transition-all">
-          <Mail className="w-6 h-6 text-gold-400" strokeWidth={1.5} />
+          <Palette className="w-6 h-6 text-gold-400" strokeWidth={1.5} />
           <span className="text-xs text-white/70 font-light tracking-wide">Diseñar Invitación</span>
         </button>
         <button onClick={() => setConfirmDelete(true)} className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-ink-800/60 border border-red-500/20 hover:border-red-500/50 hover:bg-ink-700 transition-all">

@@ -82,7 +82,7 @@ export default function GuestSearch({ guests, onSelect, onGuestUpdated }: GuestS
 
       {/* Results dropdown */}
       {results.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto scrollbar-thin rounded-2xl bg-ink-800/95 backdrop-blur-md border border-gold-500/30 shadow-2xl shadow-black/50 overflow-hidden">
+        <div className="relative left-0 right-0 mt-2 max-h-80 overflow-y-auto scrollbar-thin rounded-2xl bg-ink-800/95 backdrop-blur-md border border-gold-500/30 shadow-2xl shadow-black/50 overflow-hidden">
           {isTableSearch && tableMatch && (
             <div className="px-4 py-2.5 bg-gold-400/10 border-b border-gold-400/30 flex items-center gap-2">
               <Armchair className="w-4 h-4 text-gold-400" />
