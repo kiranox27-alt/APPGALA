@@ -80,8 +80,9 @@ export async function saveInvitationConfig(eventoId: number, config: InvitationC
   return (data as Evento) ?? null;
 }
 
-export function parseInvitationConfig(raw: string | null | undefined): InvitationConfig | null {
+export function parseInvitationConfig(raw: string | Record<string, unknown> | null | undefined): InvitationConfig | null {
   if (!raw) return null;
+  if (typeof raw === 'object') return raw as unknown as InvitationConfig;
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object') return parsed as InvitationConfig;

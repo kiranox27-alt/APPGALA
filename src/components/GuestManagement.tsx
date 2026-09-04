@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Search, Pencil, Trash2, QrCode, CheckCircle2, Clock, Users, UtensilsCrossed, RotateCcw, Utensils, Baby } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Pencil, Trash2, QrCode, CheckCircle2, Clock, Users, UtensilsCrossed, RotateCcw, Utensils, Baby, FileSpreadsheet, Download } from 'lucide-react';
 import type { Invitado, InvitadoInsert, EventType, Evento } from '@/types/guest';
 import { fetchGuests, createGuest, updateGuest, deleteGuest, revertCheckIn } from '@/lib/guests';
 import { buildQrImageUrl } from '@/lib/qr';
+import { downloadAllInvitationsHtml, DEFAULT_CONFIG } from '@/lib/invitation';
+import { parseInvitationConfig } from '@/lib/evento';
 import GuestFormModal from './GuestFormModal';
+import GuestImportModal from './GuestImportModal';
 import InvitationCard from './InvitationCard';
 
 interface GuestManagementProps {
@@ -25,6 +28,8 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
   const [qrGuest, setQrGuest] = useState<Invitado | null>(null);
   const [invitationGuest, setInvitationGuest] = useState<Invitado | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Invitado | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [bulkDownloading, setBulkDownloading] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -75,6 +80,13 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
     await load();
   }
 
+  function handleBulkDownload(): void {
+    if (guests.length === 0 || bulkDownloading) return;
+    setBulkDownloading(true);
+    downloadAllInvitationsHtml(guests, evento, parseInvitationConfig(evento.invitation_config) ?? DEFAULT_CONFIG);
+    window.setTimeout(() => setBulkDownloading(false), 700);
+  }
+
   const filters: { key: Filter; label: string }[] = [
     { key: 'todos', label: 'Todos' },
     { key: 'Pendiente', label: 'Disponibles' },
@@ -93,20 +105,30 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
           <span className="text-sm font-light">Recepción</span>
         </button>
         <h1 className="text-xl font-serif font-light gold-gradient-text">Invitados</h1>
-        <button
-          onClick={() => {
-            setModalGuest(null);
-            setModalOpen(true);
-          }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full gold-gradient-bg text-ink-900 text-xs font-semibold tracking-wide hover:shadow-gold transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 rounded-full border border-emerald2-500/40 px-3 py-2 text-xs font-medium tracking-wide text-emerald2-400 transition-all hover:bg-emerald2-500/10">
+            <FileSpreadsheet className="h-4 w-4" /> Importar
+          </button>
+          <button
+            onClick={() => {
+              setModalGuest(null);
+              setModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 rounded-full gold-gradient-bg px-4 py-2 text-xs font-semibold tracking-wide text-ink-900 transition-all hover:shadow-gold"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevo
+          </button>
+        </div>
       </div>
 
       {/* Search + filters */}
-      <div className="space-y-3 mb-5">
+      <div className="mb-5 space-y-3">
+        <div className="flex gap-2">
+          <button onClick={handleBulkDownload} disabled={guests.length === 0 || bulkDownloading} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gold-400/30 bg-gold-400/10 py-2.5 text-xs text-gold-300 transition-colors hover:bg-gold-400/20 disabled:cursor-not-allowed disabled:opacity-40">
+            <Download className="h-4 w-4" /> {bulkDownloading ? 'Preparando…' : 'Descargar todas las invitaciones'}
+          </button>
+        </div>
         <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-ink-700/80 border border-white/10">
           <Search className="w-4 h-4 text-white/40" />
           <input
@@ -276,7 +298,15 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
 
       {/* Invitation modal */}
       {invitationGuest && (
-        <InvitationCard guest={invitationGuest} evento={evento} onClose={() => setInvitationGuest(null)} />
+        <InvitationCard guest={invitationGuest} evento={evento} savedConfig={parseInvitationConfig(evento.invitation_config)} onClose={() => setInvitationGuest(null)} />
+      )}
+
+      {importOpen && (
+        <GuestImportModal
+          eventoId={evento.id}
+          onClose={() => setImportOpen(false)}
+          onImported={load}
+        />
       )}
 
       {/* QR modal */}

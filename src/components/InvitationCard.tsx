@@ -6,6 +6,7 @@ import { buildQrImageUrl, escapeXmlAttr } from '@/lib/qr';
 import {
   DEFAULT_CONFIG, FONT_STYLES, TITLE_SIZES, TEXT_SIZES, FRAME_SHAPES, QR_POSITIONS,
   COLOR_SWATCHES, ACCENT_SWATCHES, buildInvitationText, formatDate, formatHora,
+  makeInvitationSvg, getFrameRadius,
 } from '@/lib/invitation';
 import type { InvitationConfig } from '@/lib/invitation';
 
@@ -354,12 +355,6 @@ export default function InvitationCard({ guest, evento, savedConfig, onClose }: 
   );
 }
 
-function getFrameRadius(config: InvitationConfig): number {
-  if (config.frameShape === 'rounded') return 28;
-  if (config.frameShape === 'soft') return 12;
-  return 0;
-}
-
 function SectionHeader({ title, icon, open, onClick }: { title: string; icon: React.ReactNode; open: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/5 first:border-t-0">
@@ -419,78 +414,4 @@ function DetailRow({ icon, value }: { icon: React.ReactNode; value: string }) {
   return <div className="flex items-center gap-2"><span className="shrink-0">{icon}</span><span className="capitalize">{value}</span></div>;
 }
 
-function escapeXml(value: string): string {
-  return value.replace(/[<>&'\"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c] ?? c));
-}
 
-function makeInvitationSvg(guest: Invitado, evento: Evento, config: InvitationConfig): string {
-  const qr = buildQrImageUrl(guest.id, 220);
-  const restrictions = guest.restriccion_alimentaria.filter((r) => r !== 'Normal');
-  const font = FONT_STYLES[config.fontIdx];
-  const titleSize = TITLE_SIZES[config.titleSize].svg;
-  const textSize = TEXT_SIZES[config.textSize].svg;
-  const frameRadius = getFrameRadius(config);
-  const fontStyle = config.italic ? 'italic' : 'normal';
-  const fontWeight = config.bold ? font.weight + 200 : font.weight;
-
-  const bgRect = config.bgImage
-    ? `<rect width="700" height="700" fill="${config.bgColor}"/><image href="${escapeXmlAttr(config.bgImage)}" x="0" y="0" width="700" height="700" preserveAspectRatio="xMidYMid slice" opacity="${config.bgOpacity / 100}"/>`
-    : `<rect width="700" height="700" fill="${config.bgColor}"/>`;
-
-  const borderRect = `<rect x="18" y="18" width="664" height="664" rx="${frameRadius}" fill="none" stroke="${config.borderColor}" stroke-width="${config.borderWidth}" opacity="0.7"/>`;
-
-  const titleText = `<text x="350" y="60" text-anchor="middle" font-family="${font.font}" font-size="14" fill="${config.dataColor}" letter-spacing="3.5" font-weight="500">INVITACIÓN ESPECIAL</text>
-    <text x="350" y="${60 + titleSize + 10}" text-anchor="middle" font-family="${font.font}" font-size="${titleSize}" fill="${config.titleColor}" font-weight="${fontWeight}" font-style="${fontStyle}" letter-spacing="${config.letterSpacing}">${escapeXml(EVENTO_TITULO[evento.tipo])}</text>`;
-
-  const eventName = evento.nombre ? `<text x="350" y="${60 + titleSize + 35}" text-anchor="middle" font-family="${font.font}" font-size="16" fill="${config.dataColor}" font-style="${fontStyle}">${escapeXml(evento.nombre)}</text>` : '';
-
-  const divider = `<line x1="100" y1="${60 + titleSize + 55}" x2="600" y2="${60 + titleSize + 55}" stroke="${config.borderColor}" stroke-width="1" opacity="0.45"/>`;
-
-  const guestLabel = `<text x="350" y="${60 + titleSize + 80}" text-anchor="middle" font-family="${font.font}" font-size="12" fill="${config.dataColor}" letter-spacing="2">INVITADO/A</text>`;
-  const guestName = `<text x="350" y="${60 + titleSize + 110}" text-anchor="middle" font-family="${font.font}" font-size="${titleSize - 6}" fill="${config.textColor}" font-weight="${config.bold ? 700 : 600}" font-style="${fontStyle}">${escapeXml(guest.nombre_completo)}</text>`;
-
-  const infoY = 60 + titleSize + 140;
-  const infoItems = [
-    `Adultos: ${guest.adultos}`,
-    `Niños: ${guest.ninos}`,
-    `Mesa: ${guest.mesa}`,
-    `Grupo: ${guest.categoria}`,
-    `Menú: ${guest.menu_elegido || 'A confirmar'}`,
-    `Alim.: ${restrictions.length ? restrictions.join(', ') : 'Normal'}`,
-  ];
-  const infoText = infoItems.map((item, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = col === 0 ? 60 : 370;
-    const y = infoY + row * 28;
-    return `<text x="${x}" y="${y}" font-family="${font.font}" font-size="${textSize}" fill="${config.textColor}">${escapeXml(item)}</text>`;
-  }).join('');
-
-  const detailsY = infoY + 3 * 28 + 20;
-  const details = [
-    formatDate(evento.fecha),
-    evento.lugar || 'Lugar a confirmar',
-    formatHora(evento.hora),
-  ];
-  const detailsText = details.map((d, i) => `<text x="350" y="${detailsY + i * 22}" text-anchor="middle" font-family="${font.font}" font-size="${textSize}" fill="${config.dataColor}">${escapeXml(d)}</text>`).join('');
-
-  // QR position
-  const qrSize = 200;
-  let qrX = 250, qrY = detailsY + 80;
-  if (config.qrPosition === 'right') { qrX = 430; qrY = detailsY + 20; }
-  else if (config.qrPosition === 'center') { qrX = 250; qrY = detailsY + 40; }
-  else { qrX = 250; qrY = detailsY + 80; }
-
-  const qrRect = `<rect x="${qrX - 10}" y="${qrY - 10}" width="${qrSize + 20}" height="${qrSize + 20}" rx="12" fill="${config.qrBgColor}" stroke="${config.borderColor}" stroke-width="${config.borderWidth}"/>`;
-  const qrImg = `<image href="${escapeXmlAttr(qr)}" x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}"/>`;
-  const qrLabel = `<text x="350" y="${qrY + qrSize + 35}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="${config.dataColor}" letter-spacing="2">PRESENTÁ ESTE CÓDIGO EN RECEPCIÓN</text>`;
-
-  const footerY = qrY + qrSize + 65;
-  const footerText = config.footerMessage
-    ? `<line x1="100" y1="${footerY}" x2="600" y2="${footerY}" stroke="${config.borderColor}" stroke-width="1" opacity="0.3"/><text x="350" y="${footerY + 25}" text-anchor="middle" font-family="${font.font}" font-size="14" fill="${config.textColor}" font-style="${fontStyle}" font-weight="${config.bold ? 600 : 400}">${escapeXml(config.footerMessage)}</text>`
-    : '';
-
-  const totalHeight = Math.max(footerY + 50, qrY + qrSize + 70);
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="${totalHeight}" viewBox="0 0 700 ${totalHeight}">${bgRect}${borderRect}${titleText}${eventName}${divider}${guestLabel}${guestName}${infoText}${detailsText}${qrRect}${qrImg}${qrLabel}${footerText}</svg>`;
-}

@@ -8,6 +8,8 @@ export type MenuElegido = 'Carne/Asado' | 'Pollo' | 'Pescado' | 'Menú Infantil'
 
 export const MENU_OPCIONES: MenuElegido[] = ['Carne/Asado', 'Pollo', 'Pescado', 'Menú Infantil'];
 
+export type InvitationConfigData = Record<string, unknown>;
+
 export interface Evento {
   id: number;
   tipo: EventType;
@@ -16,7 +18,7 @@ export interface Evento {
   lugar: string | null;
   hora: string | null;
   created_at: string;
-  invitation_config?: string | null;
+  invitation_config?: string | InvitationConfigData | null;
 }
 
 export interface Invitado {
