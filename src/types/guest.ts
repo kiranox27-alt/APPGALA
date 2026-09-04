@@ -16,6 +16,7 @@ export interface Evento {
   lugar: string | null;
   hora: string | null;
   created_at: string;
+  invitation_config?: string | null;
 }
 
 export interface Invitado {

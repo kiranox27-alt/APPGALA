@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Evento, EventType } from '@/types/guest';
+import type { InvitationConfig } from '@/lib/invitation';
 
 export async function fetchEventos(): Promise<Evento[]> {
   const { data, error } = await supabase
@@ -66,4 +67,26 @@ export async function deleteEvento(id: number): Promise<void> {
   if (guestErr) throw guestErr;
   const { error } = await supabase.from('evento').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function saveInvitationConfig(eventoId: number, config: InvitationConfig): Promise<Evento | null> {
+  const { data, error } = await supabase
+    .from('evento')
+    .update({ invitation_config: JSON.stringify(config) })
+    .eq('id', eventoId)
+    .select('*')
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Evento) ?? null;
+}
+
+export function parseInvitationConfig(raw: string | null | undefined): InvitationConfig | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') return parsed as InvitationConfig;
+  } catch {
+    // invalid JSON
+  }
+  return null;
 }

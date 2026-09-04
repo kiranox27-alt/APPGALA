@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { QrCode, Users, TrendingUp, Sparkle, Heart, Cake, PartyPopper, GraduationCap, Pencil, Radio, FileDown, Trash2 } from 'lucide-react';
+import { QrCode, Users, TrendingUp, Sparkle, Heart, Cake, PartyPopper, GraduationCap, Pencil, Radio, FileDown, Trash2, Mail } from 'lucide-react';
 import type { Invitado, Evento, EventType } from '@/types/guest';
 import GuestSearch from './GuestSearch';
 
@@ -13,6 +13,7 @@ interface ReceptionHomeProps {
   onChangeEvent: () => void;
   onExport: () => void;
   onDeleteEvent: () => void;
+  onDesignInvitation: () => void;
 }
 
 const EVENT_ICONS: Record<EventType, typeof Heart> = {
@@ -22,7 +23,7 @@ const EVENT_ICONS: Record<EventType, typeof Heart> = {
   'Fiesta Privada': PartyPopper,
 };
 
-export default function ReceptionHome({ guests, evento, onScan, onSelectGuest, onGuestUpdated, onNavigate, onChangeEvent, onExport, onDeleteEvent }: ReceptionHomeProps) {
+export default function ReceptionHome({ guests, evento, onScan, onSelectGuest, onGuestUpdated, onNavigate, onChangeEvent, onExport, onDeleteEvent, onDesignInvitation }: ReceptionHomeProps) {
   const [stats, setStats] = useState({ total: 0, in: 0, pending: 0, passes: 0, inPasses: 0 });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -122,6 +123,10 @@ export default function ReceptionHome({ guests, evento, onScan, onSelectGuest, o
         <button onClick={() => onNavigate('dashboard')} className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-ink-800/60 border border-white/10 hover:border-gold-400/40 hover:bg-ink-700 transition-all">
           <TrendingUp className="w-6 h-6 text-gold-400" strokeWidth={1.5} />
           <span className="text-xs text-white/70 font-light tracking-wide">Resumen</span>
+        </button>
+        <button onClick={onDesignInvitation} className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-ink-800/60 border border-gold-400/20 hover:border-gold-400/50 hover:bg-ink-700 transition-all">
+          <Mail className="w-6 h-6 text-gold-400" strokeWidth={1.5} />
+          <span className="text-xs text-white/70 font-light tracking-wide">Diseñar Invitación</span>
         </button>
         <button onClick={() => setConfirmDelete(true)} className="flex flex-col items-center gap-2 py-4 rounded-2xl bg-ink-800/60 border border-red-500/20 hover:border-red-500/50 hover:bg-ink-700 transition-all">
           <Trash2 className="w-6 h-6 text-red-400" strokeWidth={1.5} />

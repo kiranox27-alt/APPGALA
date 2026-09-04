@@ -13,6 +13,9 @@ import LivePanel from '@/components/LivePanel';
 import GuestDetailModal from '@/components/GuestDetailModal';
 import { exportGuestsToExcel } from '@/lib/export';
 import type { EventoInput } from '@/lib/evento';
+import { saveInvitationConfig, parseInvitationConfig } from '@/lib/evento';
+import type { InvitationConfig } from '@/lib/invitation';
+import InvitationDesigner from '@/components/InvitationDesigner';
 
 type View = 'home' | 'guests' | 'dashboard' | 'live';
 
@@ -28,6 +31,7 @@ export default function App() {
   const [detailGuest, setDetailGuest] = useState<Invitado | null>(null);
   const [scanErr, setScanErr] = useState<string | null>(null);
   const [showEventList, setShowEventList] = useState(false);
+  const [showDesigner, setShowDesigner] = useState(false);
 
   const loadEventos = useCallback(async () => {
     try {
@@ -157,6 +161,17 @@ export default function App() {
     if (currentEvento) loadGuests(currentEvento.id);
   }
 
+  async function handleSaveInvitationConfig(config: InvitationConfig) {
+    if (!currentEvento) return;
+    const updated = await saveInvitationConfig(currentEvento.id, config);
+    if (updated) {
+      setCurrentEvento(updated);
+      setEventos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    }
+  }
+
+  const invitationConfig = currentEvento ? parseInvitationConfig(currentEvento.invitation_config) : null;
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-ink-900">
@@ -223,6 +238,7 @@ export default function App() {
           onChangeEvent={() => setShowEventList(true)}
           onExport={() => exportGuestsToExcel(guests)}
           onDeleteEvent={() => handleDeleteEvent(currentEvento.id)}
+          onDesignInvitation={() => setShowDesigner(true)}
         />
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] animate-fade-in-up">
           <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-red-500/15 border border-red-500/40 backdrop-blur">
@@ -267,6 +283,7 @@ export default function App() {
         onChangeEvent={() => setShowEventList(true)}
         onExport={() => exportGuestsToExcel(guests)}
         onDeleteEvent={() => handleDeleteEvent(currentEvento.id)}
+        onDesignInvitation={() => setShowDesigner(true)}
       />
       {detailGuest && (
         <GuestDetailModal
@@ -276,6 +293,15 @@ export default function App() {
             setGuests((prev) => prev.map((p) => (p.id === g.id ? g : p)));
             setDetailGuest(g);
           }}
+        />
+      )}
+      {showDesigner && currentEvento && (
+        <InvitationDesigner
+          evento={currentEvento}
+          previewGuest={guests[0] ?? null}
+          savedConfig={invitationConfig}
+          onSave={handleSaveInvitationConfig}
+          onClose={() => setShowDesigner(false)}
         />
       )}
     </>

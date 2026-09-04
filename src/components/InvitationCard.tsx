@@ -9,12 +9,12 @@ import {
 } from '@/lib/invitation';
 import type { InvitationConfig } from '@/lib/invitation';
 
-interface InvitationCardProps { guest: Invitado; evento: Evento; onClose: () => void; }
+interface InvitationCardProps { guest: Invitado; evento: Evento; savedConfig?: InvitationConfig | null; onClose: () => void; }
 
 type Section = 'colors' | 'background' | 'font' | 'frame' | 'qr' | 'footer';
 
-export default function InvitationCard({ guest, evento, onClose }: InvitationCardProps) {
-  const [config, setConfig] = useState<InvitationConfig>({ ...DEFAULT_CONFIG });
+export default function InvitationCard({ guest, evento, savedConfig, onClose }: InvitationCardProps) {
+  const [config, setConfig] = useState<InvitationConfig>(savedConfig ? { ...savedConfig } : { ...DEFAULT_CONFIG });
   const [message, setMessage] = useState<string | null>(null);
   const [openSection, setOpenSection] = useState<Section | null>('colors');
   const fileRef = useRef<HTMLInputElement>(null);
