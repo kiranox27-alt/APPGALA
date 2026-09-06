@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Search, Pencil, Trash2, QrCode, CheckCircle2, Clock, Users, UtensilsCrossed, RotateCcw, Utensils, Baby, FileSpreadsheet, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Pencil, Trash2, QrCode, CheckCircle2, Clock, Users, UtensilsCrossed, RotateCcw, Utensils, Baby, FileSpreadsheet, Download, FileImage, FileType, X } from 'lucide-react';
 import type { Invitado, InvitadoInsert, EventType, Evento } from '@/types/guest';
 import { fetchGuests, createGuest, updateGuest, deleteGuest, revertCheckIn } from '@/lib/guests';
 import { buildQrImageUrl } from '@/lib/qr';
-import { downloadAllInvitationsHtml, printAllInvitations, DEFAULT_CONFIG } from '@/lib/invitation';
+import { downloadAllInvitationsHtml, downloadAllInvitationsAsImages, downloadAllInvitationsPdf, DEFAULT_CONFIG } from '@/lib/invitation';
 import { parseInvitationConfig } from '@/lib/evento';
 import GuestFormModal from './GuestFormModal';
 import GuestImportModal from './GuestImportModal';
@@ -30,6 +30,8 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
   const [confirmDelete, setConfirmDelete] = useState<Invitado | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -80,16 +82,28 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
     await load();
   }
 
-  function handleBulkDownload(): void {
-    if (guests.length === 0 || bulkDownloading) return;
-    setBulkDownloading(true);
-    downloadAllInvitationsHtml(guests, evento, parseInvitationConfig(evento.invitation_config) ?? DEFAULT_CONFIG);
-    window.setTimeout(() => setBulkDownloading(false), 700);
+  const config = parseInvitationConfig(evento.invitation_config) ?? DEFAULT_CONFIG;
+
+  async function handleExportImages(format: 'jpg' | 'jpeg'): Promise<void> {
+    setExporting(format);
+    try {
+      await downloadAllInvitationsAsImages(guests, evento, config, format);
+    } catch {
+      setErr('No se pudieron generar las imágenes. Intentá nuevamente.');
+    } finally {
+      setExporting(null);
+    }
   }
 
-  function handlePrintAll(): void {
-    if (guests.length === 0) return;
-    printAllInvitations(guests, evento, parseInvitationConfig(evento.invitation_config) ?? DEFAULT_CONFIG);
+  async function handleExportPdf(): Promise<void> {
+    setExporting('pdf');
+    try {
+      await downloadAllInvitationsPdf(guests, evento, config);
+    } catch {
+      setErr('No se pudo generar el PDF. Intentá nuevamente.');
+    } finally {
+      setExporting(null);
+    }
   }
 
   const filters: { key: Filter; label: string }[] = [
@@ -130,11 +144,8 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
       {/* Search + filters */}
       <div className="mb-5 space-y-3">
         <div className="flex gap-2">
-          <button onClick={handleBulkDownload} disabled={guests.length === 0 || bulkDownloading} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gold-400/30 bg-gold-400/10 py-2.5 text-xs text-gold-300 transition-colors hover:bg-gold-400/20 disabled:cursor-not-allowed disabled:opacity-40">
-            <Download className="h-4 w-4" /> {bulkDownloading ? 'Preparando…' : 'Descargar todas'}
-          </button>
-          <button onClick={handlePrintAll} disabled={guests.length === 0} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald2-500/30 bg-emerald2-500/10 py-2.5 text-xs text-emerald2-300 transition-colors hover:bg-emerald2-500/20 disabled:cursor-not-allowed disabled:opacity-40">
-            <Printer className="h-4 w-4" /> Imprimir todas
+          <button onClick={() => setDownloadModalOpen(true)} disabled={guests.length === 0} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald2-500/30 bg-emerald2-500/10 py-2.5 text-xs text-emerald2-300 transition-colors hover:bg-emerald2-500/20 disabled:cursor-not-allowed disabled:opacity-40">
+            <Download className="h-4 w-4" /> Descargar invitaciones
           </button>
         </div>
         <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-ink-700/80 border border-white/10">
@@ -340,6 +351,78 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
             >
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Download modal */}
+      {downloadModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center px-6 animate-fade-in"
+          onClick={() => setDownloadModalOpen(false)}
+        >
+          <div
+            className="bg-ink-800 rounded-3xl border border-white/10 p-6 max-w-sm w-full animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-serif font-light text-white">Descargar invitaciones</h3>
+              <button onClick={() => setDownloadModalOpen(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-white/60" />
+              </button>
+            </div>
+            <p className="text-white/50 text-sm font-light mb-5">
+              Elegí el formato para descargar las {guests.length} invitaciones con el diseño completo aplicado.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => void handleExportImages('jpg')}
+                disabled={exporting !== null}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-ink-700/50 px-4 py-3.5 text-left transition-all hover:border-gold-400/40 hover:bg-gold-400/5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileImage className="h-6 w-6 text-gold-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-white font-light">JPG (imágenes individuales)</p>
+                  <p className="text-xs text-white/40 font-light">Una imagen por invitación, lista para imprimir o editar el tamaño.</p>
+                </div>
+                {exporting === 'jpg' && <span className="text-xs text-gold-400 animate-pulse">Generando…</span>}
+              </button>
+              <button
+                onClick={() => void handleExportImages('jpeg')}
+                disabled={exporting !== null}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-ink-700/50 px-4 py-3.5 text-left transition-all hover:border-gold-400/40 hover:bg-gold-400/5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileImage className="h-6 w-6 text-gold-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-white font-light">JPEG (alta calidad)</p>
+                  <p className="text-xs text-white/40 font-light">Mismo formato JPG con máxima calidad de imagen.</p>
+                </div>
+                {exporting === 'jpeg' && <span className="text-xs text-gold-400 animate-pulse">Generando…</span>}
+              </button>
+              <button
+                onClick={() => void handleExportPdf()}
+                disabled={exporting !== null}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-ink-700/50 px-4 py-3.5 text-left transition-all hover:border-gold-400/40 hover:bg-gold-400/5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileType className="h-6 w-6 text-gold-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-white font-light">PDF (todas en un archivo)</p>
+                  <p className="text-xs text-white/40 font-light">Un PDF con una invitación por página, ideal para imprimir todo junto.</p>
+                </div>
+                {exporting === 'pdf' && <span className="text-xs text-gold-400 animate-pulse">Generando…</span>}
+              </button>
+              <button
+                onClick={() => { downloadAllInvitationsHtml(guests, evento, config); }}
+                disabled={exporting !== null}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-ink-700/50 px-4 py-3.5 text-left transition-all hover:border-gold-400/40 hover:bg-gold-400/5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download className="h-6 w-6 text-gold-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-white font-light">HTML (para imprimir desde el navegador)</p>
+                  <p className="text-xs text-white/40 font-light">Abre una página con todas las invitaciones para imprimir con Ctrl+P.</p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ import { buildQrImageUrl, escapeXmlAttr } from '@/lib/qr';
 import {
   DEFAULT_CONFIG, FONT_STYLES, TITLE_SIZES, TEXT_SIZES, FRAME_SHAPES, QR_POSITIONS,
   COLOR_SWATCHES, ACCENT_SWATCHES, buildInvitationText, formatDate, formatHora,
-  makeInvitationSvg, getFrameRadius,
+  makeInvitationSvg, getFrameRadius, downloadInvitationAsImage,
 } from '@/lib/invitation';
 import type { InvitationConfig } from '@/lib/invitation';
 
@@ -44,14 +44,13 @@ export default function InvitationCard({ guest, evento, savedConfig, onClose }: 
   }
 
   async function downloadCard() {
-    const svg = makeInvitationSvg(guest, evento, config);
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `invitacion-${guest.nombre_completo.toLowerCase().replace(/[^a-z0-9]+/gi, '-')}.svg`;
-    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
-    setMessage('Invitación descargada'); setTimeout(() => setMessage(null), 2500);
+    try {
+      await downloadInvitationAsImage(guest, evento, config, 'jpg');
+      setMessage('Invitación descargada (JPG)');
+    } catch {
+      setMessage('No se pudo generar la imagen');
+    }
+    setTimeout(() => setMessage(null), 2500);
   }
 
   async function shareWhatsApp() {

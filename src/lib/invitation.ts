@@ -203,21 +203,125 @@ export function makeInvitationSvg(guest: Invitado, evento: Evento, config: Invit
   return `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="${totalHeight}" viewBox="0 0 700 ${totalHeight}">${bgRect}${borderRect}${titleText}${eventName}${divider}${guestLabel}${guestName}${infoText}${detailsText}${qrRect}${qrImg}${qrLabel}${footerText}</svg>`;
 }
 
-function buildInvitationsPrintHtml(
+export type DownloadFormat = 'jpg' | 'jpeg' | 'pdf';
+
+async function svgToCanvas(svg: string, scale = 2): Promise<HTMLCanvasElement> {
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await loadImage(url);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth * scale;
+    canvas.height = img.naturalHeight * scale;
+    const ctx = canvas.getContext('2d')!;
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    return canvas;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('No se pudo cargar la imagen SVG'));
+    img.src = src;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, format: 'image/jpeg', quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('No se pudo generar la imagen'));
+    }, format, quality);
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
+}
+
+export async function downloadInvitationAsImage(
+  guest: Invitado,
+  evento: Evento,
+  config: InvitationConfig,
+  format: 'jpg' | 'jpeg',
+): Promise<void> {
+  const svg = makeInvitationSvg(guest, evento, config);
+  const canvas = await svgToCanvas(svg, 2);
+  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.95);
+  downloadBlob(blob, `invitacion-${slug(guest.nombre_completo)}.${format}`);
+}
+
+export async function downloadAllInvitationsAsImages(
   guests: Invitado[],
   evento: Evento,
   config: InvitationConfig,
-  autoPrint: boolean,
-): string {
+  format: 'jpg' | 'jpeg',
+): Promise<void> {
+  for (const guest of guests) {
+    await downloadInvitationAsImage(guest, evento, config, format);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+}
+
+export async function downloadAllInvitationsPdf(
+  guests: Invitado[],
+  evento: Evento,
+  config: InvitationConfig,
+): Promise<void> {
+  if (guests.length === 0) return;
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = 210;
+  const pageH = 297;
+  const margin = 15;
+  const maxW = pageW - margin * 2;
+  const maxH = pageH - margin * 2;
+
+  for (let i = 0; i < guests.length; i++) {
+    const svg = makeInvitationSvg(guests[i], evento, config);
+    const canvas = await svgToCanvas(svg, 2);
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const ratio = canvas.width / canvas.height;
+    let w = maxW;
+    let h = w / ratio;
+    if (h > maxH) { h = maxH; w = h * ratio; }
+    const x = (pageW - w) / 2;
+    const y = (pageH - h) / 2;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', x, y, w, h);
+  }
+
+  pdf.save(`invitaciones-${slug(evento.nombre || evento.tipo)}.pdf`);
+}
+
+export function downloadAllInvitationsHtml(
+  guests: Invitado[],
+  evento: Evento,
+  config: InvitationConfig,
+): void {
+  if (guests.length === 0) return;
   const svgCards = guests.map((g) => makeInvitationSvg(g, evento, config));
   const font = FONT_STYLES[config.fontIdx];
   const radius = getFrameRadius(config);
   const cardsHtml = svgCards.map((svg) => `<div class="card">${svg}</div>`).join('\n');
-  const printScript = autoPrint
-    ? '<script>window.addEventListener("load",()=>{setTimeout(()=>{window.print()},300)})</script>'
-    : '';
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
@@ -252,39 +356,16 @@ function buildInvitationsPrintHtml(
 <div class="grid">
 ${cardsHtml}
 </div>
-${printScript}
 </body>
 </html>`;
-}
 
-export function downloadAllInvitationsHtml(
-  guests: Invitado[],
-  evento: Evento,
-  config: InvitationConfig,
-): void {
-  if (guests.length === 0) return;
-  const html = buildInvitationsPrintHtml(guests, evento, config, false);
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `invitaciones-${(evento.nombre || evento.tipo).toLowerCase().replace(/[^a-z0-9]+/gi, '-')}.html`;
+  anchor.download = `invitaciones-${slug(evento.nombre || evento.tipo)}.html`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
-}
-
-export function printAllInvitations(
-  guests: Invitado[],
-  evento: Evento,
-  config: InvitationConfig,
-): void {
-  if (guests.length === 0) return;
-  const html = buildInvitationsPrintHtml(guests, evento, config, true);
-  const w = window.open('', '_blank');
-  if (!w) return;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
 }
