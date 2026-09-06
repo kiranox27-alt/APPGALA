@@ -203,38 +203,67 @@ export function makeInvitationSvg(guest: Invitado, evento: Evento, config: Invit
   return `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="${totalHeight}" viewBox="0 0 700 ${totalHeight}">${bgRect}${borderRect}${titleText}${eventName}${divider}${guestLabel}${guestName}${infoText}${detailsText}${qrRect}${qrImg}${qrLabel}${footerText}</svg>`;
 }
 
-export function downloadAllInvitationsHtml(
+function buildInvitationsPrintHtml(
   guests: Invitado[],
   evento: Evento,
   config: InvitationConfig,
-): void {
-  if (guests.length === 0) return;
-
-  const cards = guests.map((g) => makeInvitationSvg(g, evento, config)).join('\n');
+  autoPrint: boolean,
+): string {
+  const svgCards = guests.map((g) => makeInvitationSvg(g, evento, config));
   const font = FONT_STYLES[config.fontIdx];
+  const radius = getFrameRadius(config);
+  const cardsHtml = svgCards.map((svg) => `<div class="card">${svg}</div>`).join('\n');
+  const printScript = autoPrint
+    ? '<script>window.addEventListener("load",()=>{setTimeout(()=>{window.print()},300)})</script>'
+    : '';
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Invitaciones - ${escapeXml(evento.nombre || evento.tipo)}</title>
 <style>
-  @page { margin: 16mm; }
-  body { margin: 0; padding: 24px; background: #1a1a1a; font-family: ${font.font}; }
-  .grid { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
-  .card { page-break-inside: avoid; margin-bottom: 24px; }
-  .card svg { display: block; max-width: 100%; height: auto; border-radius: ${getFrameRadius(config)}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-  @media print { body { background: white; padding: 0; } .grid { display: block; } .card { margin: 0; page-break-after: always; } .card:last-child { page-break-after: auto; } }
+  * { box-sizing: border-box; }
+  @page { margin: 12mm; size: auto; }
+  body { margin: 0; padding: 0; background: #e8e6e1; font-family: ${font.font}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .toolbar { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #1a1a1a; color: #fff; }
+  .toolbar h1 { margin: 0; font-size: 16px; font-weight: 300; letter-spacing: 1px; }
+  .toolbar button { padding: 8px 20px; border: none; border-radius: 999px; background: #d4af37; color: #1a1a1a; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .toolbar button:hover { background: #e6c14f; }
+  .grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 24px; }
+  .card { page-break-inside: avoid; break-inside: avoid; }
+  .card svg { display: block; width: 700px; max-width: 100%; height: auto; border-radius: ${radius}px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
+  @media print {
+    body { background: white; }
+    .toolbar { display: none; }
+    .grid { display: block; padding: 0; gap: 0; }
+    .card { margin: 0; page-break-after: always; break-after: page; }
+    .card:last-child { page-break-after: auto; break-after: auto; }
+    .card svg { box-shadow: none; width: 100%; max-width: 700px; margin: 0 auto; }
+  }
 </style>
 </head>
 <body>
-<div class="grid">
-${cards.split('\n').map((svg) => `<div class="card">${svg}</div>`).join('\n')}
+<div class="toolbar">
+  <h1>Invitaciones - ${escapeXml(evento.nombre || evento.tipo)} (${guests.length})</h1>
+  <button onclick="window.print()">Imprimir / Guardar PDF</button>
 </div>
+<div class="grid">
+${cardsHtml}
+</div>
+${printScript}
 </body>
 </html>`;
+}
 
+export function downloadAllInvitationsHtml(
+  guests: Invitado[],
+  evento: Evento,
+  config: InvitationConfig,
+): void {
+  if (guests.length === 0) return;
+  const html = buildInvitationsPrintHtml(guests, evento, config, false);
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -244,4 +273,18 @@ ${cards.split('\n').map((svg) => `<div class="card">${svg}</div>`).join('\n')}
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+}
+
+export function printAllInvitations(
+  guests: Invitado[],
+  evento: Evento,
+  config: InvitationConfig,
+): void {
+  if (guests.length === 0) return;
+  const html = buildInvitationsPrintHtml(guests, evento, config, true);
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }

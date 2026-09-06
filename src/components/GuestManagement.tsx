@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Search, Pencil, Trash2, QrCode, CheckCircle2, Clock, Users, UtensilsCrossed, RotateCcw, Utensils, Baby, FileSpreadsheet, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Pencil, Trash2, QrCode, CheckCircle2, Clock, Users, UtensilsCrossed, RotateCcw, Utensils, Baby, FileSpreadsheet, Download, Printer } from 'lucide-react';
 import type { Invitado, InvitadoInsert, EventType, Evento } from '@/types/guest';
 import { fetchGuests, createGuest, updateGuest, deleteGuest, revertCheckIn } from '@/lib/guests';
 import { buildQrImageUrl } from '@/lib/qr';
-import { downloadAllInvitationsHtml, DEFAULT_CONFIG } from '@/lib/invitation';
+import { downloadAllInvitationsHtml, printAllInvitations, DEFAULT_CONFIG } from '@/lib/invitation';
 import { parseInvitationConfig } from '@/lib/evento';
 import GuestFormModal from './GuestFormModal';
 import GuestImportModal from './GuestImportModal';
@@ -87,6 +87,11 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
     window.setTimeout(() => setBulkDownloading(false), 700);
   }
 
+  function handlePrintAll(): void {
+    if (guests.length === 0) return;
+    printAllInvitations(guests, evento, parseInvitationConfig(evento.invitation_config) ?? DEFAULT_CONFIG);
+  }
+
   const filters: { key: Filter; label: string }[] = [
     { key: 'todos', label: 'Todos' },
     { key: 'Pendiente', label: 'Disponibles' },
@@ -126,7 +131,10 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
       <div className="mb-5 space-y-3">
         <div className="flex gap-2">
           <button onClick={handleBulkDownload} disabled={guests.length === 0 || bulkDownloading} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gold-400/30 bg-gold-400/10 py-2.5 text-xs text-gold-300 transition-colors hover:bg-gold-400/20 disabled:cursor-not-allowed disabled:opacity-40">
-            <Download className="h-4 w-4" /> {bulkDownloading ? 'Preparando…' : 'Descargar todas las invitaciones'}
+            <Download className="h-4 w-4" /> {bulkDownloading ? 'Preparando…' : 'Descargar todas'}
+          </button>
+          <button onClick={handlePrintAll} disabled={guests.length === 0} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald2-500/30 bg-emerald2-500/10 py-2.5 text-xs text-emerald2-300 transition-colors hover:bg-emerald2-500/20 disabled:cursor-not-allowed disabled:opacity-40">
+            <Printer className="h-4 w-4" /> Imprimir todas
           </button>
         </div>
         <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-ink-700/80 border border-white/10">
