@@ -132,8 +132,8 @@ function escapeXml(value: string): string {
   return value.replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c] ?? c));
 }
 
-export function makeInvitationSvg(guest: Invitado, evento: Evento, config: InvitationConfig): string {
-  const qr = buildQrImageUrl(guest.id, 220);
+export function makeInvitationSvg(guest: Invitado, evento: Evento, config: InvitationConfig, qrDataUrl?: string): string {
+  const qr = qrDataUrl ?? buildQrImageUrl(guest.id, 220);
   const restrictions = guest.restriccion_alimentaria.filter((r) => r !== 'Normal');
   const font = FONT_STYLES[config.fontIdx];
   const titleSize = TITLE_SIZES[config.titleSize].svg;
@@ -205,6 +205,32 @@ export function makeInvitationSvg(guest: Invitado, evento: Evento, config: Invit
 
 export type DownloadFormat = 'jpg' | 'jpeg' | 'pdf';
 
+const qrCache = new Map<number, string>();
+
+async function fetchQrDataUrl(guestId: number): Promise<string> {
+  const cached = qrCache.get(guestId);
+  if (cached) return cached;
+  const url = buildQrImageUrl(guestId, 220);
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const dataUrl = await blobToDataUrl(blob);
+    qrCache.set(guestId, dataUrl);
+    return dataUrl;
+  } catch {
+    return url;
+  }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('No se pudo leer el blob'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function svgToCanvas(svg: string, scale = 2): Promise<HTMLCanvasElement> {
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -261,7 +287,8 @@ export async function downloadInvitationAsImage(
   config: InvitationConfig,
   format: 'jpg' | 'jpeg',
 ): Promise<void> {
-  const svg = makeInvitationSvg(guest, evento, config);
+  const qrDataUrl = await fetchQrDataUrl(guest.id);
+  const svg = makeInvitationSvg(guest, evento, config, qrDataUrl);
   const canvas = await svgToCanvas(svg, 2);
   const blob = await canvasToBlob(canvas, 'image/jpeg', 0.95);
   downloadBlob(blob, `invitacion-${slug(guest.nombre_completo)}.${format}`);
@@ -294,7 +321,8 @@ export async function downloadAllInvitationsPdf(
   const maxH = pageH - margin * 2;
 
   for (let i = 0; i < guests.length; i++) {
-    const svg = makeInvitationSvg(guests[i], evento, config);
+    const qrDataUrl = await fetchQrDataUrl(guests[i].id);
+    const svg = makeInvitationSvg(guests[i], evento, config, qrDataUrl);
     const canvas = await svgToCanvas(svg, 2);
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const ratio = canvas.width / canvas.height;
@@ -310,13 +338,17 @@ export async function downloadAllInvitationsPdf(
   pdf.save(`invitaciones-${slug(evento.nombre || evento.tipo)}.pdf`);
 }
 
-export function downloadAllInvitationsHtml(
+export async function downloadAllInvitationsHtml(
   guests: Invitado[],
   evento: Evento,
   config: InvitationConfig,
-): void {
+): Promise<void> {
   if (guests.length === 0) return;
-  const svgCards = guests.map((g) => makeInvitationSvg(g, evento, config));
+  const svgPromises = guests.map(async (g) => {
+    const qrDataUrl = await fetchQrDataUrl(g.id);
+    return makeInvitationSvg(g, evento, config, qrDataUrl);
+  });
+  const svgCards = await Promise.all(svgPromises);
   const font = FONT_STYLES[config.fontIdx];
   const radius = getFrameRadius(config);
   const cardsHtml = svgCards.map((svg) => `<div class="card">${svg}</div>`).join('\n');

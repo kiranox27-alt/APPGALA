@@ -412,7 +412,7 @@ export default function GuestManagement({ eventType, evento, onBack }: GuestMana
                 {exporting === 'pdf' && <span className="text-xs text-gold-400 animate-pulse">Generando…</span>}
               </button>
               <button
-                onClick={() => { downloadAllInvitationsHtml(guests, evento, config); }}
+                onClick={() => { void downloadAllInvitationsHtml(guests, evento, config); }}
                 disabled={exporting !== null}
                 className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-ink-700/50 px-4 py-3.5 text-left transition-all hover:border-gold-400/40 hover:bg-gold-400/5 disabled:cursor-not-allowed disabled:opacity-50"
               >
